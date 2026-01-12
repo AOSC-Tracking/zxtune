@@ -40,7 +40,6 @@ extern "C" int __cdecl _kbhit(void);
 #include "player/playera.hpp"
 #include "audio/AudioStream.h"
 #include "audio/AudioStream_SpcDrvFuns.h"
-#include "emu/Resampler.h"
 #include "emu/SoundDevs.h"	// for DEVID_*
 #include "emu/EmuCores.h"
 #include "utils/OSMutex.h"
@@ -315,6 +314,7 @@ int main(int argc, char* argv[])
 		PLR_SONG_INFO sInf;
 		std::vector<PLR_DEV_INFO> diList;
 		size_t curDev;
+		size_t curLDev;
 		
 		player->GetSongInfo(sInf);
 		player->GetSongDeviceInfo(diList);
@@ -324,8 +324,31 @@ int main(int argc, char* argv[])
 		for (curDev = 0; curDev < diList.size(); curDev ++)
 		{
 			const PLR_DEV_INFO& pdi = diList[curDev];
-			printf(" Dev %d: Type 0x%02X #%d, Core %s, Clock %u, Rate %u, Volume 0x%X\n",
-				(int)pdi.id, pdi.type, (INT8)pdi.instance, FCC2Str(pdi.core).c_str(), pdi.devCfg->clock, pdi.smplRate, pdi.volume);
+			const char* devName = "";
+			UINT16 chns = 0;
+			if (pdi.devDecl != NULL)
+			{
+				devName = pdi.devDecl->name(pdi.devCfg);
+				chns = pdi.devDecl->channelCount(pdi.devCfg);
+			}
+			printf(" Dev %d: Type 0x%02X %7s #%d, Core %-4s, Clk %u, Rate %u, Vol 0x%X, Chns %u\n",
+				(int)pdi.id, pdi.type, devName, (INT8)pdi.instance, FCC2Str(pdi.core).c_str(),
+				pdi.devCfg->clock, pdi.smplRate, pdi.volume, chns);
+			
+			for (curLDev = 0; curLDev < pdi.devLink.size(); curLDev ++)
+			{
+				const PLR_DEV_INFO& pdil = pdi.devLink[curLDev];
+				const char* devLName = "";
+				UINT16 chnsL = 0;
+				if (pdil.devDecl != NULL)
+				{
+					devLName = pdil.devDecl->name(pdil.devCfg);
+					chnsL = pdil.devDecl->channelCount(pdil.devCfg);
+				}
+				printf("  Dev %d-%d: Type 0x%02X %7s, Core %-4s, Clk %u, Rate %u, Vol 0x%X, Chns %u\n",
+					(int)pdil.id, curLDev, pdil.type, devLName, FCC2Str(pdil.core).c_str(),
+					pdil.devCfg->clock, pdil.smplRate, pdil.volume, chnsL);
+			}
 		}
 	}
 	const std::vector<VGMPlayer::DACSTRM_DEV>* vgmPcmStrms = NULL;
@@ -560,7 +583,9 @@ static void DoChipControlMode(PlayerBase* player)
 			
 			// number (sound chip ID) / D (display) / P (player options)
 			printf("Sound Chip ID: ");
-			fgets(line, 0x80, stdin);
+			endPtr = fgets(line, 0x80, stdin);
+			if (endPtr == NULL)
+				return;
 			StripNewline(line);
 			if (line[0] == '\0')
 				return;
@@ -655,7 +680,9 @@ static void DoChipControlMode(PlayerBase* player)
 			
 			// Core / Linked Core / Opts / SRMode / SampleRate / ReSampleMode / Muting
 			printf("Command [C/LC/O/SRM/SR/RSM/M data]: ");
-			fgets(line, 0x80, stdin);
+			endPtr = fgets(line, 0x80, stdin);
+			if (endPtr == NULL)
+				return;
 			StripNewline(line);
 			
 			tokenStr = strtok(line, " ");
@@ -779,7 +806,9 @@ static void DoChipControlMode(PlayerBase* player)
 				droplay->GetPlayerOptions(playOpts);
 				
 				printf("Command [SPD/OPL3 data]: ");
-				fgets(line, 0x80, stdin);
+				endPtr = fgets(line, 0x80, stdin);
+				if (endPtr == NULL)
+					return;
 				StripNewline(line);
 				
 				tokenStr = strtok(line, " ");
@@ -814,7 +843,9 @@ static void DoChipControlMode(PlayerBase* player)
 				s98play->GetPlayerOptions(playOpts);
 				
 				printf("Command [SPD data]: ");
-				fgets(line, 0x80, stdin);
+				endPtr = fgets(line, 0x80, stdin);
+				if (endPtr == NULL)
+					return;
 				StripNewline(line);
 				
 				tokenStr = strtok(line, " ");
@@ -843,7 +874,9 @@ static void DoChipControlMode(PlayerBase* player)
 				vgmplay->GetPlayerOptions(playOpts);
 				
 				printf("Command [SPD/PHZ/HSO data]: ");
-				fgets(line, 0x80, stdin);
+				endPtr = fgets(line, 0x80, stdin);
+				if (endPtr == NULL)
+					return;
 				StripNewline(line);
 				
 				tokenStr = strtok(line, " ");
@@ -884,7 +917,9 @@ static void DoChipControlMode(PlayerBase* player)
 				gymplay->GetPlayerOptions(playOpts);
 				
 				printf("Command [SPD data]: ");
-				fgets(line, 0x80, stdin);
+				endPtr = fgets(line, 0x80, stdin);
+				if (endPtr == NULL)
+					return;
 				StripNewline(line);
 				
 				tokenStr = strtok(line, " ");
@@ -916,7 +951,9 @@ static void DoChipControlMode(PlayerBase* player)
 			
 			// Tags / FileInfo
 			printf("Command [T/FI/LL/TD data]: ");
-			fgets(line, 0x80, stdin);
+			endPtr = fgets(line, 0x80, stdin);
+			if (endPtr == NULL)
+				return;
 			StripNewline(line);
 			
 			tokenStr = strtok(line, " ");
@@ -986,12 +1023,13 @@ static void StripNewline(char* str)
 
 static std::string FCC2Str(UINT32 fcc)
 {
-	std::string result(4, '\0');
+	char result[5];
 	result[0] = (char)((fcc >> 24) & 0xFF);
 	result[1] = (char)((fcc >> 16) & 0xFF);
 	result[2] = (char)((fcc >>  8) & 0xFF);
 	result[3] = (char)((fcc >>  0) & 0xFF);
-	return result;
+	result[4] = '\0';
+	return std::string(result);
 }
 
 static UINT8 *SlurpFile(const char *fileName, UINT32 *fileSize)

@@ -40,6 +40,12 @@ source_files = $(addprefix emu/cores/,\
   x1_010 \
   c352 \
   iremga20 \
+  bsmt2000 \
+  ics2115 \
+  k005289 \
+  k007232 \
+  msm5205 \
+  msm5232 \
 )
 
 source_files += $(addprefix emu/,SoundEmu Resampler panning dac_control logging_stub)

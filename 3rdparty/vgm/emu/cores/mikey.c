@@ -4,10 +4,11 @@
 #include <stdlib.h>
 
 #include "../../stdtype.h"
-#include "../../stdbool.h"
+#include "../../_stdbool.h"
 #include "emutypes.h"
 #include "../snddef.h"
 #include "../EmuStructs.h"
+#include "../SoundDevs.h"
 #include "../EmuCores.h"
 #include "../EmuHelper.h"
 #include "mikey.h"
@@ -31,7 +32,6 @@ static DEVDEF_RWFUNC devFunc[] =
 static DEV_DEF devDef =
 {
   "MIKEY", "laoo", FCC_LAOO,
-  4,  // Channels
 
   mikey_start,
   mikey_stop,
@@ -48,10 +48,37 @@ static DEV_DEF devDef =
   devFunc,  // rwFuncs
 };
 
-const DEV_DEF* devDefList_Mikey[] =
+static const char* DeviceName(const DEV_GEN_CFG* devCfg)
 {
-  &devDef,
-  NULL
+	return "Mikey";
+}
+
+static UINT16 DeviceChannels(const DEV_GEN_CFG* devCfg)
+{
+	return 4;
+}
+
+static const char** DeviceChannelNames(const DEV_GEN_CFG* devCfg)
+{
+	return NULL;
+}
+
+static const DEVLINK_IDS* DeviceLinkIDs(const DEV_GEN_CFG* devCfg)
+{
+	return NULL;
+}
+
+const DEV_DECL sndDev_Mikey =
+{
+	DEVID_MIKEY,
+	DeviceName,
+	DeviceChannels,
+	DeviceChannelNames,
+	DeviceLinkIDs,
+	{	// cores
+		&devDef,
+		NULL
+	}
 };
 
 

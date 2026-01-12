@@ -1,5 +1,5 @@
 #### libvgm ####
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)	# should work with >=3.4
 if(POLICY CMP0042)
 	cmake_policy(SET CMP0042 NEW)
 endif()
@@ -219,7 +219,7 @@ endif(BUILD_VGM2WAV)
 
 set(COMMON_HEADERS
 	common_def.h
-	stdbool.h
+	_stdbool.h
 	stdtype.h
 )
 

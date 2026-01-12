@@ -52,6 +52,7 @@ Unmapped registers:
 
 #include "../../stdtype.h"
 #include "../EmuStructs.h"
+#include "../SoundDevs.h"
 #include "../EmuCores.h"
 #include "../snddef.h"
 #include "../EmuHelper.h"
@@ -83,7 +84,6 @@ static DEVDEF_RWFUNC devFunc[] =
 static DEV_DEF devDef =
 {
 	"C219", "MAME", FCC_MAME,
-	16,  // Channels
 	
 	device_start_c219,
 	device_stop_c219,
@@ -100,10 +100,37 @@ static DEV_DEF devDef =
 	devFunc,	// rwFuncs
 };
 
-const DEV_DEF* devDefList_C219[] =
+static const char* DeviceName(const DEV_GEN_CFG* devCfg)
 {
-	&devDef,
-	NULL
+	return "C219";
+}
+
+static UINT16 DeviceChannels(const DEV_GEN_CFG* devCfg)
+{
+	return 16;
+}
+
+static const char** DeviceChannelNames(const DEV_GEN_CFG* devCfg)
+{
+	return NULL;
+}
+
+static const DEVLINK_IDS* DeviceLinkIDs(const DEV_GEN_CFG* devCfg)
+{
+	return NULL;
+}
+
+const DEV_DECL sndDev_C219 =
+{
+	DEVID_C219,
+	DeviceName,
+	DeviceChannels,
+	DeviceChannelNames,
+	DeviceLinkIDs,
+	{	// cores
+		&devDef,
+		NULL
+	}
 };
 
 
