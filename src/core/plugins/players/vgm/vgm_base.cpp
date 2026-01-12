@@ -166,10 +166,15 @@ namespace Module::LibVGM
       Devices.reserve(devices.size());
       for (const auto& dev : devices)
       {
-        Devices.emplace_back(dev, TotalChannels);
-        auto& curDev = Devices.back();
-        TotalChannels += curDev.Core->channels;
+        auto& curDev = Devices.emplace_back(dev, TotalChannels);
+        TotalChannels += curDev.ChannelsCount();
         ++Types[dev.type];
+        for (const auto& ldev : dev.devLink)
+        {
+          auto& curLinkedDev = curDev.Linked.emplace_back(ldev, TotalChannels);
+          TotalChannels += curLinkedDev.ChannelsCount();
+          ++Types[ldev.type];
+        }
       }
     }
 
@@ -181,25 +186,42 @@ namespace Module::LibVGM
       }
       Strings::Array result;
       result.reserve(TotalChannels);
-      for (const auto& dev : Devices)
-      {
-        String name = dev.Core->name;
+      auto addDevice = [this, &result](const Device& dev) {
+        String name = dev.Name();
         if (Types[dev.Info.type] > 1)
         {
           name += ':';
           name += std::to_string(int(dev.Info.instance));
         }
-        if (dev.Core->channels > 1)
+        if (const auto channels = dev.ChannelsCount(); channels > 1)
         {
           name += '.';
-          for (uint_t ch : xrange(dev.Core->channels))
+          if (const auto* names = dev.ChannelsNames())
           {
-            result.emplace_back(name + std::to_string(ch));
+            for (uint_t ch : xrange(channels))
+            {
+              result.emplace_back(name + names[ch]);
+            }
+          }
+          else
+          {
+            for (uint_t ch : xrange(channels))
+            {
+              result.emplace_back(name + std::to_string(ch));
+            }
           }
         }
         else
         {
           result.emplace_back(std::move(name));
+        }
+      };
+      for (const auto& dev : Devices)
+      {
+        addDevice(dev);
+        for (const auto& ldev : dev.Linked)
+        {
+          addDevice(ldev);
         }
       }
       return result;
@@ -211,42 +233,46 @@ namespace Module::LibVGM
       {
         PLR_MUTE_OPTS opt = {};
         opt.chnMute[0] = static_cast<UINT32>(mask >> dev.MuteMaskShift);
+        for (uint_t lidx = 0, limit = std::min(dev.Linked.size(), std::size(opt.chnMute) - 1); lidx < limit; ++lidx)
+        {
+          const auto& ldev = dev.Linked[lidx];
+          opt.chnMute[1 + lidx] = static_cast<UINT32>(mask >> ldev.MuteMaskShift);
+        }
         player.GetPlayer()->SetDeviceMuting(dev.Info.id, opt);
       }
     }
 
   private:
-    static const DEV_DEF* FindDeviceCore(const PLR_DEV_INFO& dev)
-    {
-      if (const auto** cores = ::SndEmu_GetDevDefList(dev.type))
-      {
-        for (const auto* core = *cores; core; core = *++cores)
-        {
-          if (core->coreID == dev.core)
-          {
-            return core;
-          }
-        }
-      }
-      Require(false);
-      return {};
-    }
-
     struct Device
     {
       PLR_DEV_INFO Info;
-      const DEV_DEF* Core;
       uint_t MuteMaskShift;
+      std::vector<Device> Linked;
 
       Device(const PLR_DEV_INFO& info, uint_t shift)
         : Info(info)
-        , Core(FindDeviceCore(info))
         , MuteMaskShift(shift)
       {}
+
+      UINT32 ChannelsCount() const
+      {
+        return Info.devDecl->channelCount(Info.devCfg);
+      }
+
+      const char* Name() const
+      {
+        return Info.devDecl->name(Info.devCfg);
+      }
+
+      const char** ChannelsNames() const
+      {
+        return Info.devDecl->channelNames(Info.devCfg);
+      }
     };
     std::vector<Device> Devices;
     uint_t TotalChannels = 0;
-    std::array<uint8_t, 0x30> Types = {};
+    // TODO: use DEVID_MAXIMUM when available
+    std::array<uint8_t, 0x100> Types = {};
   };
 
   const Time::Milliseconds FRAME_DURATION(20);
