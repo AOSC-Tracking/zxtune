@@ -14,7 +14,6 @@ import android.net.Uri;
 import androidx.annotation.Nullable;
 
 import app.zxtune.BuildConfig;
-import app.zxtune.playlist.Database.Tables;
 
 /*
  * content://app.zxtune.playlist/items - all items
@@ -110,20 +109,5 @@ public class PlaylistQuery {
       builder.appendPath(id.toString());
     }
     return builder.build();
-  }
-
-  public static String limitedOrder(int count) {
-    return count > 0
-        ? Tables.Playlist.Fields.pos + " ASC LIMIT " + count
-        : Tables.Playlist.Fields.pos + " DESC LIMIT " + (-count);
-  }
-
-  public static String positionSelection(String comparing, Long id) {
-    return String.format("%1$s %2$s (SELECT %1$s from %3$s WHERE %4$s=%5$d)",
-        Tables.Playlist.Fields.pos,
-        comparing,
-        Tables.Playlist.NAME,
-        Tables.Playlist.Fields._id,
-        id);
   }
 }

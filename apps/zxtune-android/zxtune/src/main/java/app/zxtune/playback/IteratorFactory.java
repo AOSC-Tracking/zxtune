@@ -13,7 +13,6 @@ import androidx.preference.PreferenceDataStore;
 import java.io.IOException;
 
 import app.zxtune.playback.PlaybackControl.SequenceMode;
-import app.zxtune.playlist.PlaylistQuery;
 
 public final class IteratorFactory {
 
@@ -24,11 +23,7 @@ public final class IteratorFactory {
    * @throws IOException
    */
   public static Iterator createIterator(Context context, Uri uri, NavigationMode mode) throws Exception {
-    if (PlaylistQuery.isPlaylistUri(uri)) {
-      return new PlaylistIterator(context, uri, mode);
-    } else {
       return FileIterator.create(context, uri);
-    }
   }
 
   //TODO: implement abstract iterator-typed visitor and preferences notification 
