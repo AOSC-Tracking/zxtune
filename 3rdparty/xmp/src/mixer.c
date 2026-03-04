@@ -59,7 +59,7 @@ MIX_FN(smix_stereo_16bit_spline_filter);
  * bit 2: 0=unfiltered, 1=filtered
  */
 
-typedef void (*mixer_set[])();
+typedef void (*mixer_set[])(struct mixer_voice *, int *, int, int, int, int);
 
 static mixer_set nearest_mixers = {
 	smix_mono_8bit_nearest,
@@ -290,7 +290,7 @@ void mixer_softmixer(struct context_data *ctx)
 	int prev_l, prev_r;
 	int lps, lpe;
 	int32 *buf_pos;
-	void (*mix_fn)();
+	void (*mix_fn)(struct mixer_voice *, int *, int, int, int, int);
 	mixer_set *mixers;
 
 	switch (s->interp) {
