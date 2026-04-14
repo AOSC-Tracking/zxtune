@@ -7,6 +7,7 @@ import app.zxtune.fs.provider.Schema
 import app.zxtune.fs.provider.VfsProviderClient
 import app.zxtune.playback.PlayableItem
 import app.zxtune.playback.Queue
+import app.zxtune.playback.service.FolderQueue.Entry.Companion.uriOf
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -51,10 +52,21 @@ internal class FolderQueue(
         // TODO: think about playback history pre-fill from indexed archives.
         // Use SearchEngine with empty query to get all the files in the same order they
         // arrive while detection
-        class Archive(val scanner: ArchiveScanner) : Entry
+        @JvmInline
+        value class Archive(val scanner: ArchiveScanner) : Entry
+
+        companion object {
+            val Entry.uriOf
+                get() = when (this) {
+                    is Unknown -> uri
+                    is Track -> id.fullLocation
+                    is Archive -> scanner.uri
+                    else -> null
+                }
+        }
     }
 
-    private inner class ArchiveScanner(private val uri: Uri) {
+    private inner class ArchiveScanner(val uri: Uri) {
         val history = ArrayList<Identifier>()
         private val items = Channel<PlayableItem>(onUndeliveredElement = {
             it.module.release()
@@ -104,14 +116,17 @@ internal class FolderQueue(
         }
     }
 
-    private class Cursor(val fileIdx: Int, val trackIdx: Int = 0) {
-        fun forTrack(idx: Int) = Cursor(fileIdx, idx)
+    private class Cursor(val file: ShuffledList.Cursor<Entry>, val trackIdx: Int = 0) {
+        fun forTrack(idx: Int) = Cursor(file, idx)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val state = object {
         private val lock = Mutex()
-        private lateinit var _content: ArrayList<Entry>
+        private val content = ShuffledList<Entry> { l, h ->
+            l === h || true == l.uriOf?.let { it == h.uriOf }
+        }
+        var shuffled by content::shuffled
 
         private suspend fun createContent() = ArrayList<Entry>().apply {
             client.list(context, object : VfsProviderClient.ListingCallback {
@@ -123,13 +138,15 @@ internal class FolderQueue(
                         Unit
                     } ?: Unit
             })
+        }.let {
+            content.update(it)
         }
 
-        private suspend fun <T> withContent(block: ArrayList<Entry>.() -> T): T = lock.withLock {
-            if (!this::_content.isInitialized) {
-                _content = createContent()
+        private suspend fun <T> withContent(block: ShuffledList<Entry>.() -> T): T = lock.withLock {
+            if (0 == content.size) {
+                createContent()
             }
-            return _content.block()
+            return content.block()
         }
 
         private fun Schema.Content.File.toEntry() = when (type) {
@@ -144,10 +161,9 @@ internal class FolderQueue(
             // Known limitation: when playback is stopped and resumed while playing some track
             // inside archive, next session's context will be that track parent dir, not an
             // original directory.
-            indexOfFirst { uri == (it as? Entry.Track)?.id?.fullLocation }.takeIf { it != -1 }
-                ?.let {
-                    Cursor(it)
-                }
+            find { uri == (it as? Entry.Track)?.id?.fullLocation }?.let {
+                Cursor(it)
+            }
         }
 
         @OptIn(ExperimentalCoroutinesApi::class)
@@ -156,20 +172,28 @@ internal class FolderQueue(
             while (true) {
                 val toPlay = fetch(cur) ?: break
                 playEntry(cur, toPlay)
-                cur = Cursor(cur.fileIdx + 1)
+                cur = withContent {
+                    advanceCursor(cur.file, +1)?.let {
+                        Cursor(it)
+                    }
+                } ?: break
             }
         }
 
         private suspend fun fetch(cur: Cursor) = withContent {
-            getOrNull(cur.fileIdx)
+            getOrNull(cur.file)
         }
 
         private suspend fun resolveUnknown(cur: Cursor, entry: Entry) = withContent {
-            val old = get(cur.fileIdx)
-            if (old is Entry.Unknown) {
-                LOG.d { "Resolve unknown at ${old.uri} to $entry" }
-                set(cur.fileIdx, entry)
+            replace(cur.file) { old ->
+                if (old is Entry.Unknown) {
+                    LOG.d { "Resolve unknown at ${old.uri} to $entry" }
+                    entry
+                } else {
+                    null
+                }
             }
+            Unit
         }
 
         private fun indexation(uri: Uri): Deferred<Entry?> =
@@ -243,7 +267,7 @@ internal class FolderQueue(
         suspend fun advance(start: Cursor, delta: Int): Cursor? {
             var cur = start
             while (true) {
-                val initialStep = cur == start
+                val initialStep = cur === start
                 when (val element = fetch(cur)) {
                     null -> return null
                     is Entry.Track -> if (!initialStep) {
@@ -252,25 +276,29 @@ internal class FolderQueue(
 
                     is Entry.Ignored -> Unit
                     is Entry.Unknown -> {
-                        element.resolvedTo.await()
-                            ?.takeUnless { it is Entry.Unknown }?.let {
-                                resolveUnknown(cur, it)
-                            } ?: resolveUnknown(cur, Entry.Ignored)
+                        val replacement =
+                            element.resolvedTo.await()?.takeUnless { it is Entry.Unknown }
+                                ?: Entry.Ignored
+                        resolveUnknown(cur, replacement)
                         continue
                     }
 
                     is Entry.Archive -> {
-                        val next = when {
-                            initialStep -> cur.forTrack(cur.trackIdx + delta)
-                            delta < 0 -> cur.forTrack(element.scanner.total() + delta)
-                            else -> cur.forTrack(cur.trackIdx + delta)
+                        val nextTrack = when {
+                            initialStep -> cur.trackIdx + delta
+                            delta < 0 -> element.scanner.total() + delta
+                            else -> cur.trackIdx + delta
                         }
-                        next.takeIf { element.scanner.has(it.trackIdx) }?.let {
-                            return it
+                        if (element.scanner.has(nextTrack)) {
+                            return cur.forTrack(nextTrack)
                         }
                     }
                 }
-                cur = Cursor(cur.fileIdx + delta)
+                cur = withContent {
+                    advanceCursor(cur.file, delta)?.let {
+                        Cursor(it)
+                    }
+                } ?: return null
             }
         }
     }
@@ -300,9 +328,7 @@ internal class FolderQueue(
         }
     } ?: Unit
 
-    override var shuffled: Boolean
-        get() = TODO("Not yet implemented")
-        set(value) {}
+    override var shuffled by state::shuffled
 
     override fun release() = scope.cancel()
 
