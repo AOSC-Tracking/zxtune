@@ -54,7 +54,6 @@ namespace Module::FastTracker
     explicit DataBuilder(AYM::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<AYM::TRACK_CHANNELS>())
       , Data(MakeRWPtr<ModuleData>())
     {}
 
@@ -403,33 +402,33 @@ namespace Module::FastTracker
       {
         dst.Volume = *volume;
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ENVELOPE:
-          track.SetEnvelopeType(it->Param1);
-          dst.Envelope = it->Param2;
+          track.SetEnvelopeType(cmd.Param1);
+          dst.Envelope = cmd.Param2;
           dst.EnvelopeEnabled = true;
           break;
         case ENVELOPE_OFF:
           dst.EnvelopeEnabled = false;
           break;
         case NOISE:
-          dst.Noise = it->Param1;
+          dst.Noise = cmd.Param1;
           break;
         case SLIDE:
-          dst.ToneSlide.SetGlissade(it->Param1);
+          dst.ToneSlide.SetGlissade(cmd.Param1);
           break;
         case SLIDE_NOTE:
         {
-          const int_t slide = track.GetSlidingDifference(it->Param2, dst.Note);
-          const int_t gliss = slide >= 0 ? -it->Param1 : it->Param1;
+          const int_t slide = track.GetSlidingDifference(cmd.Param2, dst.Note);
+          const int_t gliss = slide >= 0 ? -cmd.Param1 : cmd.Param1;
           const int_t direction = slide >= 0 ? -1 : +1;
           dst.ToneSlide.SetSlide(slide);
           dst.ToneSlide.SetGlissade(gliss);
           dst.ToneSlide.SetSlideDirection(direction);
-          dst.Note = it->Param2 + Transposition;
+          dst.Note = cmd.Param2 + Transposition;
         }
         break;
         }

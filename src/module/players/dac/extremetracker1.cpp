@@ -52,7 +52,6 @@ namespace Module::ExtremeTracker1
     explicit DataBuilder(DAC::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<CHANNELS_COUNT>())
       , Data(MakeRWPtr<ModuleData>(CHANNELS_COUNT))
     {}
 
@@ -231,12 +230,12 @@ namespace Module::ExtremeTracker1
         const uint_t level = *volume;
         builder.SetLevelInPercents(100 * level / 16);
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case GLISS:
-          gliss.Glissade = it->Param1;
+          gliss.Glissade = cmd.Param1;
           break;
         default:
           assert(!"Invalid command");

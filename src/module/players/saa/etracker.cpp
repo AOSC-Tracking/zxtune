@@ -80,7 +80,6 @@ namespace Module::ETracker
   public:
     explicit DataBuilder(PropertiesHelper& props)
       : Meta(props)
-      , Patterns(PatternsBuilder::Create<SAA::TRACK_CHANNELS>())
       , Data(MakeRWPtr<ModuleData>())
     {}
 
@@ -312,18 +311,18 @@ namespace Module::ETracker
       {
         dst.Attenuation = 15 - *volume;
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ENVELOPE:
-          channel.SetEnvelope(ENVELOPE_TABLE[it->Param1]);
+          channel.SetEnvelope(ENVELOPE_TABLE[cmd.Param1]);
           break;
         case SWAPCHANNELS:
-          dst.SwapSampleChannels = it->Param1 != 0;
+          dst.SwapSampleChannels = cmd.Param1 != 0;
           break;
         case NOISE:
-          Noise[idx >= 3] = it->Param1;
+          Noise[idx >= 3] = cmd.Param1;
           break;
         default:
           assert(!"Invalid command");

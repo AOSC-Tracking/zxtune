@@ -43,7 +43,6 @@ namespace Module::SoundTrackerPro
     explicit DataBuilder(AYM::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<AYM::TRACK_CHANNELS>())
       , Data(MakeRWPtr<ModuleData>())
     {
       Properties.SetFrequencyTable(TABLE_SOUNDTRACKER_PRO);
@@ -222,15 +221,15 @@ namespace Module::SoundTrackerPro
       {
         dst.Volume = *volume;
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ENVELOPE:
-          if (it->Param1)
+          if (cmd.Param1)
           {
-            track.SetEnvelopeType(it->Param1);
-            track.SetEnvelopeTone(it->Param2);
+            track.SetEnvelopeType(cmd.Param1);
+            track.SetEnvelopeTone(cmd.Param2);
           }
           dst.Envelope = true;
           break;
@@ -238,7 +237,7 @@ namespace Module::SoundTrackerPro
           dst.Envelope = false;
           break;
         case GLISS:
-          dst.Glissade = it->Param1;
+          dst.Glissade = cmd.Param1;
           break;
         default:
           assert(!"Invalid command");

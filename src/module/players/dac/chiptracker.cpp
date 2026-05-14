@@ -58,7 +58,6 @@ namespace Module::ChipTracker
     explicit DataBuilder(DAC::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<CHANNELS_COUNT>())
       , Data(MakeRWPtr<ModuleData>(CHANNELS_COUNT))
     {
       Properties.SetSamplesFrequency(SAMPLES_FREQ);
@@ -232,15 +231,15 @@ namespace Module::ChipTracker
       }
       builder.SetFreqSlideHz(0);
       gliss.Reset();
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case SAMPLE_OFFSET:
-          builder.SetPosInSample(it->Param1);
+          builder.SetPosInSample(cmd.Param1);
           break;
         case SLIDE:
-          gliss.Glissade = it->Param1;
+          gliss.Glissade = cmd.Param1;
           break;
         default:
           assert(!"Invalid command");

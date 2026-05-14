@@ -22,16 +22,6 @@ namespace Module
     StubPattern() = default;
 
   public:
-    const Line* GetLine(uint_t /*row*/) const override
-    {
-      return nullptr;
-    }
-
-    uint_t GetSize() const override
-    {
-      return 0;
-    }
-
     static const Pattern* Create()
     {
       static const StubPattern instance;

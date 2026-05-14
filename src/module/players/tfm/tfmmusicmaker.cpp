@@ -103,7 +103,6 @@ namespace Module::TFMMusicMaker
     explicit DataBuilder(PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<TFM::TRACK_CHANNELS>())
       , Data(MakeRWPtr<ModuleData>())
     {}
 
@@ -668,31 +667,31 @@ namespace Module::TFMMusicMaker
       bool dropEffects = false;
       bool hasPortamento = false;
       bool hasOpMixer = false;
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case PORTAMENTO:
           hasPortamento = true;
           break;
         case SPECMODE:
-          SetSpecialMode(it->Param1 != 0, track);
+          SetSpecialMode(cmd.Param1 != 0, track);
           break;
         case TONEOFFSET:
-          State.ToneOffset[it->Param1] = it->Param2;
+          State.ToneOffset[cmd.Param1] = cmd.Param2;
           break;
         case MULTIPLE:
-          multiplies[it->Param1] = &it->Param2;
+          multiplies[cmd.Param1] = &cmd.Param2;
           break;
         case MIXING:
           hasOpMixer = true;
           break;
         case PANE:
-          if (1 == it->Param1)
+          if (1 == cmd.Param1)
           {
             channel.SetPane(0x80);
           }
-          else if (2 == it->Param1)
+          else if (2 == cmd.Param1)
           {
             channel.SetPane(0x40);
           }
@@ -702,13 +701,13 @@ namespace Module::TFMMusicMaker
           }
           break;
         case NOTERETRIG:
-          dst.NoteRetrig = it->Param1;
+          dst.NoteRetrig = cmd.Param1;
           break;
         case NOTECUT:
-          dst.NoteCut = it->Param1;
+          dst.NoteCut = cmd.Param1;
           break;
         case NOTEDELAY:
-          dst.NoteDelay = it->Param1;
+          dst.NoteDelay = cmd.Param1;
           break;
         case DROPEFFECTS:
           dropEffects = true;
@@ -775,39 +774,39 @@ namespace Module::TFMMusicMaker
           dst.HasVolumeChange = true;
         }
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ARPEGGIO:
-          dst.Arpeggio.SetAddons(it->Param1, it->Param2);
+          dst.Arpeggio.SetAddons(cmd.Param1, cmd.Param2);
           break;
         case TONESLIDE:
-          dst.ToneSlide.SetDelta(it->Param1);
+          dst.ToneSlide.SetDelta(cmd.Param1);
           break;
         case PORTAMENTO:
-          dst.Portamento.SetStep(it->Param1);
+          dst.Portamento.SetStep(cmd.Param1);
           break;
         case VIBRATO:
           // parameter in 1/16 of halftone
-          dst.Vibrato.SetParameters(it->Param1, it->Param2 * Halftones::Type::PRECISION / 16);
+          dst.Vibrato.SetParameters(cmd.Param1, cmd.Param2 * Halftones::Type::PRECISION / 16);
           break;
         case LEVEL:
-          dst.TotalLevel[it->Param1] = it->Param2;
+          dst.TotalLevel[cmd.Param1] = cmd.Param2;
           dst.HasVolumeChange = true;
           break;
         case VOLSLIDE:
-          dst.VolumeSlide.SetDelta(it->Param1);
-          dst.VolumeSlide.SetDelta(-it->Param2);
+          dst.VolumeSlide.SetDelta(cmd.Param1);
+          dst.VolumeSlide.SetDelta(-cmd.Param2);
           break;
         case MULTIPLE:
-          channel.SetDetuneMultiple(it->Param1, dst.CurInstrument->Operators[it->Param1].Detune, it->Param2);
+          channel.SetDetuneMultiple(cmd.Param1, dst.CurInstrument->Operators[cmd.Param1].Detune, cmd.Param2);
           break;
         case MIXING:
-          channel.SetKey(it->Param1);
+          channel.SetKey(cmd.Param1);
           break;
         case FEEDBACK:
-          channel.SetupConnection(dst.Algorithm, it->Param1);
+          channel.SetupConnection(dst.Algorithm, cmd.Param1);
           break;
         }
       }
@@ -1011,16 +1010,6 @@ namespace Module::TFMMusicMaker
     StubPattern() = default;
 
   public:
-    const Line* GetLine(uint_t /*row*/) const override
-    {
-      return nullptr;
-    }
-
-    uint_t GetSize() const override
-    {
-      return 0;
-    }
-
     static const Pattern* Create()
     {
       static const StubPattern instance;
@@ -1289,22 +1278,22 @@ namespace Module::TFMMusicMaker
     void LoadNewLoopTempoParameters(const Cell& chan)
     {
       // TODO: chan.FindCommand ?
-      for (CommandsIterator it = chan.GetCommands(); it; ++it)
+      for (const auto& cmd : chan.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case TEMPO_INTERLEAVE:
-          Plain.TempoInterleavePeriod = it->Param1;
+          Plain.TempoInterleavePeriod = cmd.Param1;
           break;
         case TEMPO_VALUES:
-          Plain.EvenTempo = it->Param1;
-          Plain.OddTempo = it->Param2;
+          Plain.EvenTempo = cmd.Param1;
+          Plain.OddTempo = cmd.Param2;
           break;
         case LOOP_START:
           Loop.Start(Plain);
           break;
         case LOOP_STOP:
-          NextLineState = Loop.Stop(it->Param1);
+          NextLineState = Loop.Stop(cmd.Param1);
           break;
         }
       }

@@ -62,14 +62,14 @@ namespace Module::DAC
 
     virtual SimpleModuleData::Ptr CaptureResult() = 0;
 
-    static Ptr Create(DAC::PropertiesHelper& props, PatternsBuilder builder,
+    static Ptr Create(DAC::PropertiesHelper& props,
                       uint_t channels);  // TODO: rework external dependency from builder
   };
 
   template<uint_t Channels>
   static SimpleDataBuilder::Ptr CreateSimpleDataBuilder(DAC::PropertiesHelper& props)
   {
-    return SimpleDataBuilder::Create(props, PatternsBuilder::Create<Channels>(), Channels);
+    return SimpleDataBuilder::Create(props, Channels);
   }
 
   DAC::Chiptune::Ptr CreateSimpleChiptune(SimpleModuleData::Ptr data, Parameters::Accessor::Ptr properties);

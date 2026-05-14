@@ -43,7 +43,6 @@ namespace Module::GlobalTracker
     explicit DataBuilder(AYM::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<AYM::TRACK_CHANNELS>())
       , Data(MakeRWPtr<ModuleData>())
     {
       Properties.SetFrequencyTable(TABLE_PROTRACKER3_ST);
@@ -208,13 +207,13 @@ namespace Module::GlobalTracker
       {
         dst.Volume = *volume;
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ENVELOPE:
-          track.SetEnvelopeType(it->Param1);
-          track.SetEnvelopeTone(it->Param2);
+          track.SetEnvelopeType(cmd.Param1);
+          track.SetEnvelopeTone(cmd.Param2);
           dst.Envelope = true;
           break;
         case NOENVELOPE:

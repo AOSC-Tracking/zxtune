@@ -134,11 +134,10 @@ namespace Module::Vortex
   class DataRenderer : public AYM::DataRenderer
   {
   public:
-    DataRenderer(ModuleData::Ptr data, uint_t trackChannelStart)
+    explicit DataRenderer(ModuleData::Ptr data)
       : Data(std::move(data))
       , Version(Data->Version)
       , VolTable(Version <= 4 ? Vol33_34 : Vol35)
-      , TrackChannelStart(trackChannelStart)
     {}
 
     void Reset() override
@@ -167,7 +166,7 @@ namespace Module::Vortex
       {
         for (uint_t chan = 0; chan != PlayerState.ChanState.size(); ++chan)
         {
-          if (const auto* const src = line->GetChannel(TrackChannelStart + chan))
+          if (const auto* const src = line->GetChannel(chan))
           {
             GetNewChannelState(*src, PlayerState.ChanState[chan], track);
           }
@@ -204,13 +203,13 @@ namespace Module::Vortex
       {
         dst.Volume = *volume;
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case GLISS:
-          dst.ToneSlider.Period = dst.ToneSlider.Counter = it->Param1;
-          dst.ToneSlider.Delta = it->Param2;
+          dst.ToneSlider.Period = dst.ToneSlider.Counter = cmd.Param1;
+          dst.ToneSlider.Delta = cmd.Param2;
           dst.SlidingTargetNote = LIMITER;
           dst.VibrateCounter = 0;
           if (0 == dst.ToneSlider.Counter && Version >= 7)
@@ -220,9 +219,9 @@ namespace Module::Vortex
           break;
         case GLISS_NOTE:
           dst.VibrateCounter = 0;
-          dst.ToneSlider.Period = dst.ToneSlider.Counter = it->Param1;
-          dst.ToneSlider.Delta = Math::Absolute(it->Param2);
-          dst.SlidingTargetNote = it->Param3;
+          dst.ToneSlider.Period = dst.ToneSlider.Counter = cmd.Param1;
+          dst.ToneSlider.Delta = Math::Absolute(cmd.Param2);
+          dst.SlidingTargetNote = cmd.Param3;
           dst.SlidingDelta = track.GetSlidingDifference(dst.Note, dst.SlidingTargetNote);
           if (Version >= 6)
           {
@@ -235,24 +234,24 @@ namespace Module::Vortex
           }
           break;
         case SAMPLEOFFSET:
-          dst.PosInSample = it->Param1;
+          dst.PosInSample = cmd.Param1;
           break;
         case ORNAMENTOFFSET:
-          dst.PosInOrnament = it->Param1;
+          dst.PosInOrnament = cmd.Param1;
           break;
         case VIBRATE:
-          dst.VibrateCounter = dst.VibrateOn = it->Param1;
-          dst.VibrateOff = it->Param2;
+          dst.VibrateCounter = dst.VibrateOn = cmd.Param1;
+          dst.VibrateOff = cmd.Param2;
           dst.ToneSlider.Value = 0;
           dst.ToneSlider.Counter = 0;
           break;
         case SLIDEENV:
-          PlayerState.CommState.EnvSlider.Period = PlayerState.CommState.EnvSlider.Counter = it->Param1;
-          PlayerState.CommState.EnvSlider.Delta = it->Param2;
+          PlayerState.CommState.EnvSlider.Period = PlayerState.CommState.EnvSlider.Counter = cmd.Param1;
+          PlayerState.CommState.EnvSlider.Delta = cmd.Param2;
           break;
         case ENVELOPE:
-          track.SetEnvelopeType(it->Param1);
-          PlayerState.CommState.EnvBase = it->Param2;
+          track.SetEnvelopeType(cmd.Param1);
+          PlayerState.CommState.EnvBase = cmd.Param2;
           dst.Envelope = true;
           PlayerState.CommState.EnvSlider.Reset();
           dst.PosInOrnament = 0;
@@ -262,7 +261,7 @@ namespace Module::Vortex
           dst.PosInOrnament = 0;
           break;
         case NOISEBASE:
-          PlayerState.CommState.NoiseBase = it->Param1;
+          PlayerState.CommState.NoiseBase = cmd.Param1;
           break;
         }
       }
@@ -376,7 +375,6 @@ namespace Module::Vortex
     const ModuleData::Ptr Data;
     const uint_t Version;
     const VolumeTable& VolTable;
-    const uint_t TrackChannelStart;
     State PlayerState;
   };
 
@@ -400,8 +398,8 @@ namespace Module::Vortex
     }
   }
 
-  AYM::DataRenderer::Ptr CreateDataRenderer(ModuleData::Ptr data, uint_t trackChannelStart)
+  AYM::DataRenderer::Ptr CreateDataRenderer(ModuleData::Ptr data)
   {
-    return MakePtr<DataRenderer>(std::move(data), trackChannelStart);
+    return MakePtr<DataRenderer>(std::move(data));
   }
 }  // namespace Module::Vortex

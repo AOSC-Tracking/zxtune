@@ -171,7 +171,7 @@ namespace Module::SQTracker
     PatternsSet::Ptr CreateFlatPatterns(const OrderList& order) const
     {
       Dbg("Convert patterns");
-      PatternsBuilder builder = PatternsBuilder::Create<AYM::TRACK_CHANNELS>();
+      PatternsBuilder builder;
       std::unordered_set<uint_t> donePatterns;
       for (uint_t pos = 0, lim = order.GetSize(); pos != lim; ++pos)
       {
@@ -349,14 +349,14 @@ namespace Module::SQTracker
       {
         dst.SetOrnament(*ornament);
       }
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case TEMPO_ADDON:
           if (effectsEnabled)
           {
-            tempoAddon += it->Param1;
+            tempoAddon += cmd.Param1;
           }
           break;
         case ATTENUATION:
@@ -367,7 +367,7 @@ namespace Module::SQTracker
           }
           [[fallthrough]];
         default:
-          dst.AddCommand(it->Type, it->Param1, it->Param2, it->Param3);
+          dst.AddCommand(cmd.Type, cmd.Param1, cmd.Param2, cmd.Param3);
           break;
         }
       }
@@ -381,25 +381,14 @@ namespace Module::SQTracker
 
   class SingleChannelPatternsBuilder : public PatternsBuilder
   {
-    explicit SingleChannelPatternsBuilder(MutablePatternsSet::Ptr patterns)
-      : PatternsBuilder(std::move(patterns))
-    {}
-
   public:
+    SingleChannelPatternsBuilder() = default;
     SingleChannelPatternsBuilder(SingleChannelPatternsBuilder&& rh) noexcept = default;
 
     void StartLine(uint_t index) override
     {
       PatternsBuilder::StartLine(index);
       SetChannel(0);
-    }
-
-    static SingleChannelPatternsBuilder Create()
-    {
-      using LineType = MultichannelMutableLine<1>;
-      using PatternType = SparsedMutablePattern<LineType>;
-      using PatternsSetType = SparsedMutablePatternsSet<PatternType>;
-      return SingleChannelPatternsBuilder(MakePtr<PatternsSetType>());
     }
   };
 
@@ -409,7 +398,6 @@ namespace Module::SQTracker
     explicit DataBuilder(AYM::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(SingleChannelPatternsBuilder::Create())
       , Data(MakeRWPtr<ModuleData>())
     {
       Properties.SetFrequencyTable(TABLE_SQTRACKER);
@@ -615,45 +603,45 @@ namespace Module::SQTracker
         dst.OrnamentPos = 0;
       }
 
-      for (CommandsIterator it = src.GetCommands(); it; ++it)
+      for (const auto& cmd : src.GetCommands())
       {
-        switch (it->Type)
+        switch (cmd.Type)
         {
         case ENVELOPE:
-          track.SetEnvelopeType(it->Param1);
-          track.SetEnvelopeTone(it->Param2);
+          track.SetEnvelopeType(cmd.Param1);
+          track.SetEnvelopeTone(cmd.Param2);
           dst.Envelope = true;
           break;
         case GLISS:
-          dst.Glissade = it->Param1;
+          dst.Glissade = cmd.Param1;
           dst.Sliding = 0;
           break;
         case ATTENUATION:
           // global
-          if (it->Param2)
+          if (cmd.Param2)
           {
             for (auto& chan : PlayerState)
             {
-              chan.Attenuation = it->Param1;
+              chan.Attenuation = cmd.Param1;
             }
           }
           else
           {
-            dst.Attenuation = it->Param1;
+            dst.Attenuation = cmd.Param1;
           }
           break;
         case ATTENUATION_ADDON:
           // global
-          if (it->Param2)
+          if (cmd.Param2)
           {
             for (auto& chan : PlayerState)
             {
-              chan.AddAttenuation(it->Param1);
+              chan.AddAttenuation(cmd.Param1);
             }
           }
           else
           {
-            dst.AddAttenuation(it->Param1);
+            dst.AddAttenuation(cmd.Param1);
           }
         }
       }

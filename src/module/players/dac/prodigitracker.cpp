@@ -52,7 +52,6 @@ namespace Module::ProDigiTracker
     explicit DataBuilder(DAC::PropertiesHelper& props)
       : Properties(props)
       , Meta(props)
-      , Patterns(PatternsBuilder::Create<ProDigiTracker::CHANNELS_COUNT>())
       , Data(MakeRWPtr<ModuleData>())
     {
       Properties.SetSamplesFrequency(SAMPLES_FREQ);

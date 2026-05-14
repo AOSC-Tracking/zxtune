@@ -37,10 +37,9 @@ namespace Module::DAC
   class SimpleDataBuilderImpl : public SimpleDataBuilder
   {
   public:
-    SimpleDataBuilderImpl(DAC::PropertiesHelper& props, PatternsBuilder builder, uint_t channels)
+    SimpleDataBuilderImpl(DAC::PropertiesHelper& props, uint_t channels)
       : Properties(props)
       , Meta(props)
-      , Patterns(std::move(builder))
       , Data(MakeRWPtr<SimpleModuleData>(channels))
     {}
 
@@ -110,10 +109,9 @@ namespace Module::DAC
     SimpleModuleData::RWPtr Data;
   };
 
-  SimpleDataBuilder::Ptr SimpleDataBuilder::Create(DAC::PropertiesHelper& props, PatternsBuilder builder,
-                                                   uint_t channels)
+  SimpleDataBuilder::Ptr SimpleDataBuilder::Create(DAC::PropertiesHelper& props, uint_t channels)
   {
-    return MakePtr<SimpleDataBuilderImpl>(props, std::move(builder), channels);
+    return MakePtr<SimpleDataBuilderImpl>(props, channels);
   }
 
   class SimpleDataRenderer : public DAC::DataRenderer

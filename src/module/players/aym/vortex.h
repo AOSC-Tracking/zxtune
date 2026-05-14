@@ -66,5 +66,5 @@ namespace Module::Vortex
     uint_t Version = 6;
   };
 
-  AYM::DataRenderer::Ptr CreateDataRenderer(ModuleData::Ptr data, uint_t trackChannelStart);
+  AYM::DataRenderer::Ptr CreateDataRenderer(ModuleData::Ptr data);
 }  // namespace Module::Vortex
