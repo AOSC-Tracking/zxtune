@@ -27,7 +27,6 @@
 #include "apps/zxtune-qt/ui/state.h"
 #include "apps/zxtune-qt/ui/tools/errordialog.h"
 #include "apps/zxtune-qt/ui/utils.h"
-#include "apps/zxtune-qt/update/check.h"
 #include "apps/zxtune-qt/urls.h"
 #include "mainwindow.ui.h"
 
@@ -105,14 +104,6 @@ namespace
       Require(connect(actionReportBug, &QAction::triggered, this, &DesktopMainWindowImpl::ReportIssue));
       Require(connect(actionAboutQt, &QAction::triggered, this, &DesktopMainWindowImpl::ShowAboutQt));
       Require(connect(actionPreferences, &QAction::triggered, this, &DesktopMainWindowImpl::ShowPreferences));
-      if (Update::CheckOperation* op = Update::CheckOperation::Create(*this))
-      {
-        Require(connect(actionCheckUpdates, &QAction::triggered, op, &Update::CheckOperation::Execute));
-      }
-      else
-      {
-        actionCheckUpdates->setEnabled(false);
-      }
 
       Require(connect(Controls, &PlaybackControls::OnPrevious, MultiPlaylist, &Playlist::UI::ContainerView::Prev));
       Require(connect(Controls, &PlaybackControls::OnNext, MultiPlaylist, &Playlist::UI::ContainerView::Next));

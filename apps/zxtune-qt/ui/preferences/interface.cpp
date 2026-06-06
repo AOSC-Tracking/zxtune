@@ -16,7 +16,6 @@
 #include "apps/zxtune-qt/ui/parameters.h"
 #include "apps/zxtune-qt/ui/tools/parameters_helpers.h"
 #include "apps/zxtune-qt/ui/utils.h"
-#include "apps/zxtune-qt/update/parameters.h"
 #include "interface.ui.h"
 
 #include "math/numeric.h"
@@ -30,47 +29,6 @@
 
 namespace
 {
-  const Parameters::IntType UPDATE_CHECK_PERIODS[] = {
-      // never
-      0,
-      // once a day
-      86400,
-      // once a week
-      86400 * 7,
-  };
-
-  class UpdateCheckPeriodComboboxValue : public Parameters::Integer
-  {
-  public:
-    explicit UpdateCheckPeriodComboboxValue(Parameters::Container::Ptr ctr)
-      : Ctr(std::move(ctr))
-    {}
-
-    int Get() const override
-    {
-      using namespace Parameters::ZXTuneQT::Update;
-      const auto val = Parameters::GetInteger(*Ctr, CHECK_PERIOD, CHECK_PERIOD_DEFAULT);
-      const auto* const arrPos = std::find(UPDATE_CHECK_PERIODS, std::end(UPDATE_CHECK_PERIODS), val);
-      return arrPos != std::end(UPDATE_CHECK_PERIODS) ? arrPos - UPDATE_CHECK_PERIODS : -1;
-    }
-
-    void Set(int val) override
-    {
-      if (Math::InRange<int>(val, 0, std::size(UPDATE_CHECK_PERIODS) - 1))
-      {
-        Ctr->SetValue(Parameters::ZXTuneQT::Update::CHECK_PERIOD, UPDATE_CHECK_PERIODS[val]);
-      }
-    }
-
-    void Reset() override
-    {
-      Ctr->RemoveValue(Parameters::ZXTuneQT::Update::CHECK_PERIOD);
-    }
-
-  private:
-    const Parameters::Container::Ptr Ctr;
-  };
-
   class InterfaceOptionsWidget
     : public UI::InterfaceSettingsWidget
     , public UI::Ui_InterfaceSettingsWidget
@@ -94,7 +52,6 @@ namespace
                          ZXTuneQT::Playlist::Cache::MEMORY_LIMIT_MB_DEFAULT);
       BooleanValue::Bind(*playlistStoreAllProperties, *Options, ZXTuneQT::Playlist::Store::PROPERTIES,
                          ZXTuneQT::Playlist::Store::PROPERTIES_DEFAULT);
-      UpdateCheckPeriod = IntegerValue::Bind(*updateCheckPeriod, MakePtr<UpdateCheckPeriodComboboxValue>(Options));
       BooleanValue::Bind(*appSingleInstance, *Options, ZXTuneQT::SINGLE_INSTANCE, ZXTuneQT::SINGLE_INSTANCE_DEFAULT);
       CmdlineTarget = IntegerValue::Bind(*cmdlineTarget, *Options, ZXTuneQT::Playlist::CMDLINE_TARGET,
                                          ZXTuneQT::Playlist::CMDLINE_TARGET_DEFAULT);
@@ -105,7 +62,6 @@ namespace
     {
       if (event && QEvent::LanguageChange == event->type())
       {
-        const Parameters::ValueSnapshot blockUpdateCheck(*UpdateCheckPeriod);
         const Parameters::ValueSnapshot blockCmdlineTarget(*CmdlineTarget);
         retranslateUi(this);
       }
@@ -142,7 +98,6 @@ namespace
   private:
     const Parameters::Container::Ptr Options;
     const UI::Language::Ptr Language;
-    Parameters::Value* UpdateCheckPeriod;
     Parameters::Value* CmdlineTarget;
   };
 }  // namespace
